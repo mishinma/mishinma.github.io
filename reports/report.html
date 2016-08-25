@@ -1,0 +1,469 @@
+Test executed on commit [[https://www.github.com/tardis-sn/tardis/commit/f18702b2f7671b2e1ff4921b6075588376ed46f9|f18702b2f7671b2e1ff4921b6075588376ed46f9]]
+
+
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Test Report</title>
+    <link href="assets/style.css" rel="stylesheet" type="text/css"/></head>
+  <body>
+    <script>/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+function toArray(iter) {
+    if (iter === null) {
+        return null;
+    }
+    return Array.prototype.slice.call(iter);
+}
+
+function find(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return elem.querySelector(selector);
+}
+
+function find_all(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return toArray(elem.querySelectorAll(selector));
+}
+
+function sort_column(elem) {
+    toggle_sort_states(elem);
+    var colIndex = toArray(elem.parentNode.childNodes).indexOf(elem);
+    var key;
+    if (elem.classList.contains('numeric')) {
+        key = key_num;
+    } else if (elem.classList.contains('result')) {
+        key = key_result;
+    } else {
+        key = key_alpha;
+    }
+    sort_table(elem, key(colIndex));
+}
+
+function show_all_extras() {
+    find_all('.col-result').forEach(show_extras);
+}
+
+function hide_all_extras() {
+    find_all('.col-result').forEach(hide_extras);
+}
+
+function show_extras(colresult_elem) {
+    var extras = colresult_elem.parentNode.nextElementSibling;
+    var expandcollapse = colresult_elem.firstElementChild;
+    extras.classList.remove("collapsed");
+    expandcollapse.classList.remove("expander");
+    expandcollapse.classList.add("collapser");
+}
+
+function hide_extras(colresult_elem) {
+    var extras = colresult_elem.parentNode.nextElementSibling;
+    var expandcollapse = colresult_elem.firstElementChild;
+    extras.classList.add("collapsed");
+    expandcollapse.classList.remove("collapser");
+    expandcollapse.classList.add("expander");
+}
+
+function show_filters() {
+    var filter_items = document.getElementsByClassName('filter');
+    for (var i = 0; i < filter_items.length; i++)
+        filter_items[i].hidden = false;
+}
+
+function add_collapse() {
+    // Add links for show/hide all
+    var resulttable = find('table#results-table');
+    var showhideall = document.createElement("p");
+    showhideall.innerHTML = '<a href="javascript:show_all_extras()">Show all details</a> / ' +
+                            '<a href="javascript:hide_all_extras()">Hide all details</a>';
+    resulttable.parentElement.insertBefore(showhideall, resulttable);
+
+    // Add show/hide link to each result
+    find_all('.col-result').forEach(function(elem) {
+        var extras = elem.parentNode.nextElementSibling;
+        var expandcollapse = document.createElement("span");
+        if (elem.innerHTML === 'Passed') {
+            extras.classList.add("collapsed");
+            expandcollapse.classList.add("expander");
+        } else {
+            expandcollapse.classList.add("collapser");
+        }
+        elem.appendChild(expandcollapse);
+
+        elem.addEventListener("click", function(event) {
+            if (event.currentTarget.parentNode.nextElementSibling.classList.contains("collapsed")) {
+                show_extras(event.currentTarget);
+            } else {
+                hide_extras(event.currentTarget);
+            }
+        });
+    })
+}
+addEventListener("DOMContentLoaded", function() {
+    reset_sort_headers();
+
+    add_collapse();
+
+    show_filters();
+
+    toggle_sort_states(find('.initial-sort'));
+
+    find_all('.col-links a.image').forEach(function(elem) {
+        elem.addEventListener("click",
+                              function(event) {
+                                  var node = elem;
+                                  while (node && !node.classList.contains('results-table-row')) {
+                                      node = node.parentNode;
+                                  }
+                                  if (node != null) {
+                                      if (node.nextSibling &&
+                                          node.nextSibling.classList.contains("extra")) {
+                                          var href = find('.image img', node.nextSibling).src;
+                                          window.open(href);
+                                      }
+                                  }
+                                  event.preventDefault();
+                              }, false)
+    });
+
+    find_all('.image a').forEach(function(elem) {
+        elem.addEventListener("click",
+                              function(event) {
+                                  window.open(find('img', elem).getAttribute('src'));
+                                  event.preventDefault();
+                              }, false)
+    });
+
+    find_all('.sortable').forEach(function(elem) {
+        elem.addEventListener("click",
+                              function(event) {
+                                  sort_column(elem);
+                              }, false)
+    });
+
+});
+
+function sort_table(clicked, key_func) {
+    var rows = find_all('.results-table-row');
+    var reversed = !clicked.classList.contains('asc');
+    var sorted_rows = sort(rows, key_func, reversed);
+    /* Whole table is removed here because browsers acts much slower
+     * when appending existing elements.
+     */
+    var thead = document.getElementById("results-table-head");
+    document.getElementById('results-table').remove();
+    var parent = document.createElement("table");
+    parent.id = "results-table";
+    parent.appendChild(thead);
+    sorted_rows.forEach(function(elem) {
+        parent.appendChild(elem);
+    });
+    document.getElementsByTagName("BODY")[0].appendChild(parent);
+}
+
+function sort(items, key_func, reversed) {
+    var sort_array = items.map(function(item, i) {
+        return [key_func(item), i];
+    });
+    var multiplier = reversed ? -1 : 1;
+
+    sort_array.sort(function(a, b) {
+        var key_a = a[0];
+        var key_b = b[0];
+        return multiplier * (key_a >= key_b ? 1 : -1);
+    });
+
+    return sort_array.map(function(item) {
+        var index = item[1];
+        return items[index];
+    });
+}
+
+function key_alpha(col_index) {
+    return function(elem) {
+        return elem.childNodes[1].childNodes[col_index].firstChild.data.toLowerCase();
+    };
+}
+
+function key_num(col_index) {
+    return function(elem) {
+        return parseFloat(elem.childNodes[1].childNodes[col_index].firstChild.data);
+    };
+}
+
+function key_result(col_index) {
+    return function(elem) {
+        var strings = ['Error', 'Failed', 'Rerun', 'XFailed', 'XPassed',
+                       'Skipped', 'Passed'];
+        return strings.indexOf(elem.childNodes[1].childNodes[col_index].firstChild.data);
+    };
+}
+
+function reset_sort_headers() {
+    find_all('.sort-icon').forEach(function(elem) {
+        elem.parentNode.removeChild(elem);
+    });
+    find_all('.sortable').forEach(function(elem) {
+        var icon = document.createElement("div");
+        icon.className = "sort-icon";
+        icon.textContent = "vvv";
+        elem.insertBefore(icon, elem.firstChild);
+        elem.classList.remove("desc", "active");
+        elem.classList.add("asc", "inactive");
+    });
+}
+
+function toggle_sort_states(elem) {
+    //if active, toggle between asc and desc
+    if (elem.classList.contains('active')) {
+        elem.classList.toggle('asc');
+        elem.classList.toggle('desc');
+    }
+
+    //if inactive, reset all other functions and add ascending active
+    if (elem.classList.contains('inactive')) {
+        reset_sort_headers();
+        elem.classList.remove('inactive');
+        elem.classList.add('active');
+    }
+}
+
+function is_all_rows_hidden(value) {
+  return value.hidden == false;
+}
+
+function filter_table(elem) {
+    var outcome_att = "data-test-result";
+    var outcome = elem.getAttribute(outcome_att);
+    class_outcome = outcome + " results-table-row";
+    var outcome_rows = document.getElementsByClassName(class_outcome);
+
+    for(var i = 0; i < outcome_rows.length; i++){
+        outcome_rows[i].hidden = !elem.checked;
+    }
+
+    var rows = find_all('.results-table-row').filter(is_all_rows_hidden);
+    var all_rows_hidden = rows.length == 0 ? true : false;
+    var not_found_message = document.getElementById("not-found-message");
+    not_found_message.hidden = !all_rows_hidden;
+}
+</script>
+    <p>Report generated on 23-Aug-2016 at 14:57:59</p>
+    <h2>Environment</h2>
+    <table id="environment">
+      <tr>
+        <td>Platform</td>
+        <td>Linux-4.4.0-34-generic-x86_64-with-Ubuntu-16.04-xenial</td></tr>
+      <tr>
+        <td>Python</td>
+        <td>2.7.12</td></tr></table>
+    <h2>Summary</h2>
+    <p>4 tests ran in 1832.34 seconds. </p>
+    <p class="filter" hidden="true">(Un)check the boxes to filter the results.</p><input checked="true" class="filter" data-test-result="passed" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="passed">0 passed</span>, <input checked="true" class="filter" data-test-result="skipped" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="skipped">14 skipped</span>, <input checked="true" class="filter" data-test-result="failed" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="failed">4 failed</span>, <input checked="true" class="filter" data-test-result="error" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="error">0 errors</span>, <input checked="true" class="filter" data-test-result="xfailed" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="xfailed">0 expected failures</span>, <input checked="true" class="filter" data-test-result="xpassed" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="xpassed">0 unexpected passes</span>
+    <h2>Results</h2>
+    <table id="results-table">
+      <thead id="results-table-head">
+        <tr>
+          <th class="sortable result initial-sort" col="result">Result</th>
+          <th class="sortable" col="name">Test</th>
+          <th class="sortable numeric" col="duration">Duration</th>
+          <th>Links</th></tr>
+        <tr hidden="true" id="not-found-message">
+          <th colspan="5">No results found. Try to check the filters</th></tr></thead>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py::TestIntegration::()::test_spectrum[/tmp/tardis-test-ifGRzT/lib.linux-x86_64-2.7/tardis/tests/integration_tests/at]</td>
+          <td class="col-duration">0.32</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="5">
+            <div>
+<div class="image" style="float: left">
+    <a href="#">
+        <img src= "assets/at_spectrum.png" />
+    </a>
+</div>
+</div>
+            <div class="log" style="clear: both">self = &lt;tardis.tests.integration_tests.test_integration.TestIntegration object at 0x7f18ff382810&gt;<br/>plot_object = &lt;tardis.tests.integration_tests.plot_helpers.LocalPlotSaver object at 0x7f18f67d8cd0&gt;<br/><br/>    def test_spectrum(self, plot_object):<br/>        plot_object.add(self.plot_spectrum(), "{0}_spectrum".format(self.name))<br/>    <br/>        assert_allclose(<br/>            self.reference['/simulation/runner/spectrum/luminosity_density_nu'],<br/>&gt;           self.result.runner.spectrum.luminosity_density_nu.cgs.value)<br/><br/>tardis/tests/integration_tests/test_integration.py:154: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ <br/>/home/misha/.virtualenvs/tardis/local/lib/python2.7/site-packages/numpy/testing/utils.py:1347: in assert_allclose<br/>    verbose=verbose, header=header)<br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ <br/><br/>comparison = &lt;function compare at 0x7f18f94e28c0&gt;<br/>x = array([  8.53645916e+26,   3.87493390e+26,   1.04583134e+27, ...,<br/>         0.00000000e+00,   0.00000000e+00,   0.00000000e+00])<br/>y = array([  1.12428088e+27,   4.73597780e+26,   1.04895503e+27, ...,<br/>         0.00000000e+00,   0.00000000e+00,   0.00000000e+00])<br/>err_msg = '', verbose = True<br/>header = 'Not equal to tolerance rtol=1e-07, atol=0', precision = 6<br/><br/>    def assert_array_compare(comparison, x, y, err_msg='', verbose=True,<br/>                             header='', precision=6):<br/>        from numpy.core import array, isnan, isinf, any, all, inf<br/>        x = array(x, copy=False, subok=True)<br/>        y = array(y, copy=False, subok=True)<br/>    <br/>        def safe_comparison(*args, **kwargs):<br/>            # There are a number of cases where comparing two arrays hits special<br/>            # cases in array_richcompare, specifically around strings and void<br/>            # dtypes. Basically, we just can't do comparisons involving these<br/>            # types, unless both arrays have exactly the *same* type. So<br/>            # e.g. you can apply == to two string arrays, or two arrays with<br/>            # identical structured dtypes. But if you compare a non-string array<br/>            # to a string array, or two arrays with non-identical structured<br/>            # dtypes, or anything like that, then internally stuff blows up.<br/>            # Currently, when things blow up, we just return a scalar False or<br/>            # True. But we also emit a DeprecationWarning, b/c eventually we<br/>            # should raise an error here. (Ideally we might even make this work<br/>            # properly, but since that will require rewriting a bunch of how<br/>            # ufuncs work then we are not counting on that.)<br/>            #<br/>            # The point of this little function is to let the DeprecationWarning<br/>            # pass (or maybe eventually catch the errors and return False, I<br/>            # dunno, that's a little trickier and we can figure that out when the<br/>            # time comes).<br/>            with warnings.catch_warnings():<br/>                warnings.filterwarnings("ignore", category=DeprecationWarning)<br/>                return comparison(*args, **kwargs)<br/>    <br/>        def isnumber(x):<br/>            return x.dtype.char in '?bhilqpBHILQPefdgFDG'<br/>    <br/>        def chk_same_position(x_id, y_id, hasval='nan'):<br/>            """Handling nan/inf: check that x and y have the nan/inf at the same<br/>            locations."""<br/>            try:<br/>                assert_array_equal(x_id, y_id)<br/>            except AssertionError:<br/>                msg = build_err_msg([x, y],<br/>                                    err_msg + '\nx and y %s location mismatch:'<br/>                                    % (hasval), verbose=verbose, header=header,<br/>                                    names=('x', 'y'), precision=precision)<br/>                raise AssertionError(msg)<br/>    <br/>        try:<br/>            cond = (x.shape == () or y.shape == ()) or x.shape == y.shape<br/>            if not cond:<br/>                msg = build_err_msg([x, y],<br/>                                    err_msg<br/>                                    + '\n(shapes %s, %s mismatch)' % (x.shape,<br/>                                                                      y.shape),<br/>                                    verbose=verbose, header=header,<br/>                                    names=('x', 'y'), precision=precision)<br/>                if not cond:<br/>                    raise AssertionError(msg)<br/>    <br/>            if isnumber(x) and isnumber(y):<br/>                x_isnan, y_isnan = isnan(x), isnan(y)<br/>                x_isinf, y_isinf = isinf(x), isinf(y)<br/>    <br/>                # Validate that the special values are in the same place<br/>                if any(x_isnan) or any(y_isnan):<br/>                    chk_same_position(x_isnan, y_isnan, hasval='nan')<br/>                if any(x_isinf) or any(y_isinf):<br/>                    # Check +inf and -inf separately, since they are different<br/>                    chk_same_position(x == +inf, y == +inf, hasval='+inf')<br/>                    chk_same_position(x == -inf, y == -inf, hasval='-inf')<br/>    <br/>                # Combine all the special values<br/>                x_id, y_id = x_isnan, y_isnan<br/>                x_id |= x_isinf<br/>                y_id |= y_isinf<br/>    <br/>                # Only do the comparison if actual values are left<br/>                if all(x_id):<br/>                    return<br/>    <br/>                if any(x_id):<br/>                    val = safe_comparison(x[~x_id], y[~y_id])<br/>                else:<br/>                    val = safe_comparison(x, y)<br/>            else:<br/>                val = safe_comparison(x, y)<br/>    <br/>            if isinstance(val, bool):<br/>                cond = val<br/>                reduced = [0]<br/>            else:<br/>                reduced = val.ravel()<br/>                cond = reduced.all()<br/>                reduced = reduced.tolist()<br/>            if not cond:<br/>                match = 100-100.0*reduced.count(1)/len(reduced)<br/>                msg = build_err_msg([x, y],<br/>                                    err_msg<br/>                                    + '\n(mismatch %s%%)' % (match,),<br/>                                    verbose=verbose, header=header,<br/>                                    names=('x', 'y'), precision=precision)<br/>                if not cond:<br/>&gt;                   raise AssertionError(msg)<br/><span class="error">E                   AssertionError: </span><br/><span class="error">E                   Not equal to tolerance rtol=1e-07, atol=0</span><br/><span class="error">E                   </span><br/><span class="error">E                   (mismatch 30.81%)</span><br/><span class="error">E                    x: array([  8.536459e+26,   3.874934e+26,   1.045831e+27, ...,   0.000000e+00,</span><br/><span class="error">E                            0.000000e+00,   0.000000e+00])</span><br/><span class="error">E                    y: array([  1.124281e+27,   4.735978e+26,   1.048955e+27, ...,   0.000000e+00,</span><br/><span class="error">E                            0.000000e+00,   0.000000e+00])</span><br/><br/>/home/misha/.virtualenvs/tardis/local/lib/python2.7/site-packages/numpy/testing/utils.py:708: AssertionError<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py::TestIntegration::()::test_shell_temperature[/tmp/tardis-test-ifGRzT/lib.linux-x86_64-2.7/tardis/tests/integration_tests/at]</td>
+          <td class="col-duration">0.14</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="5">
+            <div>
+<div class="image" style="float: left">
+    <a href="#">
+        <img src= "assets/at_t_rads.png" />
+    </a>
+</div>
+</div>
+            <div class="log" style="clear: both">self = &lt;tardis.tests.integration_tests.test_integration.TestIntegration object at 0x7f18f95304d0&gt;<br/>plot_object = &lt;tardis.tests.integration_tests.plot_helpers.LocalPlotSaver object at 0x7f18f9530590&gt;<br/><br/>    def test_shell_temperature(self, plot_object):<br/>        plot_object.add(self.plot_t_rads(), "{0}_t_rads".format(self.name))<br/>    <br/>        assert_allclose(<br/>            self.reference['/simulation/model/t_rads'],<br/>&gt;           self.result.t_rads.cgs.value)<br/><br/>tardis/tests/integration_tests/test_integration.py:204: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ <br/>/home/misha/.virtualenvs/tardis/local/lib/python2.7/site-packages/numpy/testing/utils.py:1347: in assert_allclose<br/>    verbose=verbose, header=header)<br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ <br/><br/>comparison = &lt;function compare at 0x7f18f8e947d0&gt;<br/>x = array([ 16729.74492168,  16123.45045918,  15439.12518018,  14696.25649642,<br/>   ...06,<br/>         7853.96887459,   7772.85331238,   7690.26014379,   7602.5802729 ])<br/>y = array([ 16805.75509946,  16277.40185182,  15693.03972266,  14942.20712851,<br/>   ...46,<br/>         7888.08145618,   7810.87485914,   7730.03568774,   7652.42757811])<br/>err_msg = '', verbose = True<br/>header = 'Not equal to tolerance rtol=1e-07, atol=0', precision = 6<br/><br/>    def assert_array_compare(comparison, x, y, err_msg='', verbose=True,<br/>                             header='', precision=6):<br/>        from numpy.core import array, isnan, isinf, any, all, inf<br/>        x = array(x, copy=False, subok=True)<br/>        y = array(y, copy=False, subok=True)<br/>    <br/>        def safe_comparison(*args, **kwargs):<br/>            # There are a number of cases where comparing two arrays hits special<br/>            # cases in array_richcompare, specifically around strings and void<br/>            # dtypes. Basically, we just can't do comparisons involving these<br/>            # types, unless both arrays have exactly the *same* type. So<br/>            # e.g. you can apply == to two string arrays, or two arrays with<br/>            # identical structured dtypes. But if you compare a non-string array<br/>            # to a string array, or two arrays with non-identical structured<br/>            # dtypes, or anything like that, then internally stuff blows up.<br/>            # Currently, when things blow up, we just return a scalar False or<br/>            # True. But we also emit a DeprecationWarning, b/c eventually we<br/>            # should raise an error here. (Ideally we might even make this work<br/>            # properly, but since that will require rewriting a bunch of how<br/>            # ufuncs work then we are not counting on that.)<br/>            #<br/>            # The point of this little function is to let the DeprecationWarning<br/>            # pass (or maybe eventually catch the errors and return False, I<br/>            # dunno, that's a little trickier and we can figure that out when the<br/>            # time comes).<br/>            with warnings.catch_warnings():<br/>                warnings.filterwarnings("ignore", category=DeprecationWarning)<br/>                return comparison(*args, **kwargs)<br/>    <br/>        def isnumber(x):<br/>            return x.dtype.char in '?bhilqpBHILQPefdgFDG'<br/>    <br/>        def chk_same_position(x_id, y_id, hasval='nan'):<br/>            """Handling nan/inf: check that x and y have the nan/inf at the same<br/>            locations."""<br/>            try:<br/>                assert_array_equal(x_id, y_id)<br/>            except AssertionError:<br/>                msg = build_err_msg([x, y],<br/>                                    err_msg + '\nx and y %s location mismatch:'<br/>                                    % (hasval), verbose=verbose, header=header,<br/>                                    names=('x', 'y'), precision=precision)<br/>                raise AssertionError(msg)<br/>    <br/>        try:<br/>            cond = (x.shape == () or y.shape == ()) or x.shape == y.shape<br/>            if not cond:<br/>                msg = build_err_msg([x, y],<br/>                                    err_msg<br/>                                    + '\n(shapes %s, %s mismatch)' % (x.shape,<br/>                                                                      y.shape),<br/>                                    verbose=verbose, header=header,<br/>                                    names=('x', 'y'), precision=precision)<br/>                if not cond:<br/>                    raise AssertionError(msg)<br/>    <br/>            if isnumber(x) and isnumber(y):<br/>                x_isnan, y_isnan = isnan(x), isnan(y)<br/>                x_isinf, y_isinf = isinf(x), isinf(y)<br/>    <br/>                # Validate that the special values are in the same place<br/>                if any(x_isnan) or any(y_isnan):<br/>                    chk_same_position(x_isnan, y_isnan, hasval='nan')<br/>                if any(x_isinf) or any(y_isinf):<br/>                    # Check +inf and -inf separately, since they are different<br/>                    chk_same_position(x == +inf, y == +inf, hasval='+inf')<br/>                    chk_same_position(x == -inf, y == -inf, hasval='-inf')<br/>    <br/>                # Combine all the special values<br/>                x_id, y_id = x_isnan, y_isnan<br/>                x_id |= x_isinf<br/>                y_id |= y_isinf<br/>    <br/>                # Only do the comparison if actual values are left<br/>                if all(x_id):<br/>                    return<br/>    <br/>                if any(x_id):<br/>                    val = safe_comparison(x[~x_id], y[~y_id])<br/>                else:<br/>                    val = safe_comparison(x, y)<br/>            else:<br/>                val = safe_comparison(x, y)<br/>    <br/>            if isinstance(val, bool):<br/>                cond = val<br/>                reduced = [0]<br/>            else:<br/>                reduced = val.ravel()<br/>                cond = reduced.all()<br/>                reduced = reduced.tolist()<br/>            if not cond:<br/>                match = 100-100.0*reduced.count(1)/len(reduced)<br/>                msg = build_err_msg([x, y],<br/>                                    err_msg<br/>                                    + '\n(mismatch %s%%)' % (match,),<br/>                                    verbose=verbose, header=header,<br/>                                    names=('x', 'y'), precision=precision)<br/>                if not cond:<br/>&gt;                   raise AssertionError(msg)<br/><span class="error">E                   AssertionError: </span><br/><span class="error">E                   Not equal to tolerance rtol=1e-07, atol=0</span><br/><span class="error">E                   </span><br/><span class="error">E                   (mismatch 100.0%)</span><br/><span class="error">E                    x: array([ 16729.744922,  16123.450459,  15439.12518 ,  14696.256496,</span><br/><span class="error">E                           13767.405141,  12570.20455 ,  11485.805503,  11135.772609,</span><br/><span class="error">E                           10895.583448,  10525.349467,  10127.667401,   9685.519772,...</span><br/><span class="error">E                    y: array([ 16805.755099,  16277.401852,  15693.039723,  14942.207129,</span><br/><span class="error">E                           14029.355373,  12801.605279,  11804.621566,  11319.853826,</span><br/><span class="error">E                           11035.909029,  10742.258772,  10251.982328,   9780.183435,...</span><br/><br/>/home/misha/.virtualenvs/tardis/local/lib/python2.7/site-packages/numpy/testing/utils.py:708: AssertionError<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py::TestIntegration::()::test_spectrum[/tmp/tardis-test-ifGRzT/lib.linux-x86_64-2.7/tardis/tests/integration_tests/w7]</td>
+          <td class="col-duration">0.11</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="5">
+            <div>
+<div class="image" style="float: left">
+    <a href="#">
+        <img src= "assets/w7_spectrum.png" />
+    </a>
+</div>
+</div>
+            <div class="log" style="clear: both">self = &lt;tardis.tests.integration_tests.test_integration.TestIntegration object at 0x7f18f9408650&gt;<br/>plot_object = &lt;tardis.tests.integration_tests.plot_helpers.LocalPlotSaver object at 0x7f18f8e74fd0&gt;<br/><br/>    def test_spectrum(self, plot_object):<br/>        plot_object.add(self.plot_spectrum(), "{0}_spectrum".format(self.name))<br/>    <br/>        assert_allclose(<br/>            self.reference['/simulation/runner/spectrum/luminosity_density_nu'],<br/>&gt;           self.result.runner.spectrum.luminosity_density_nu.cgs.value)<br/><br/>tardis/tests/integration_tests/test_integration.py:154: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ <br/>/home/misha/.virtualenvs/tardis/local/lib/python2.7/site-packages/numpy/testing/utils.py:1347: in assert_allclose<br/>    verbose=verbose, header=header)<br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ <br/><br/>comparison = &lt;function compare at 0x7f18f465eb90&gt;<br/>x = array([  3.05330028e+27,   2.10800209e+27,   2.75725981e+27, ...,<br/>         0.00000000e+00,   0.00000000e+00,   0.00000000e+00])<br/>y = array([  2.45013202e+27,   2.10584913e+27,   3.05062111e+27, ...,<br/>         0.00000000e+00,   0.00000000e+00,   0.00000000e+00])<br/>err_msg = '', verbose = True<br/>header = 'Not equal to tolerance rtol=1e-07, atol=0', precision = 6<br/><br/>    def assert_array_compare(comparison, x, y, err_msg='', verbose=True,<br/>                             header='', precision=6):<br/>        from numpy.core import array, isnan, isinf, any, all, inf<br/>        x = array(x, copy=False, subok=True)<br/>        y = array(y, copy=False, subok=True)<br/>    <br/>        def safe_comparison(*args, **kwargs):<br/>            # There are a number of cases where comparing two arrays hits special<br/>            # cases in array_richcompare, specifically around strings and void<br/>            # dtypes. Basically, we just can't do comparisons involving these<br/>            # types, unless both arrays have exactly the *same* type. So<br/>            # e.g. you can apply == to two string arrays, or two arrays with<br/>            # identical structured dtypes. But if you compare a non-string array<br/>            # to a string array, or two arrays with non-identical structured<br/>            # dtypes, or anything like that, then internally stuff blows up.<br/>            # Currently, when things blow up, we just return a scalar False or<br/>            # True. But we also emit a DeprecationWarning, b/c eventually we<br/>            # should raise an error here. (Ideally we might even make this work<br/>            # properly, but since that will require rewriting a bunch of how<br/>            # ufuncs work then we are not counting on that.)<br/>            #<br/>            # The point of this little function is to let the DeprecationWarning<br/>            # pass (or maybe eventually catch the errors and return False, I<br/>            # dunno, that's a little trickier and we can figure that out when the<br/>            # time comes).<br/>            with warnings.catch_warnings():<br/>                warnings.filterwarnings("ignore", category=DeprecationWarning)<br/>                return comparison(*args, **kwargs)<br/>    <br/>        def isnumber(x):<br/>            return x.dtype.char in '?bhilqpBHILQPefdgFDG'<br/>    <br/>        def chk_same_position(x_id, y_id, hasval='nan'):<br/>            """Handling nan/inf: check that x and y have the nan/inf at the same<br/>            locations."""<br/>            try:<br/>                assert_array_equal(x_id, y_id)<br/>            except AssertionError:<br/>                msg = build_err_msg([x, y],<br/>                                    err_msg + '\nx and y %s location mismatch:'<br/>                                    % (hasval), verbose=verbose, header=header,<br/>                                    names=('x', 'y'), precision=precision)<br/>                raise AssertionError(msg)<br/>    <br/>        try:<br/>            cond = (x.shape == () or y.shape == ()) or x.shape == y.shape<br/>            if not cond:<br/>                msg = build_err_msg([x, y],<br/>                                    err_msg<br/>                                    + '\n(shapes %s, %s mismatch)' % (x.shape,<br/>                                                                      y.shape),<br/>                                    verbose=verbose, header=header,<br/>                                    names=('x', 'y'), precision=precision)<br/>                if not cond:<br/>                    raise AssertionError(msg)<br/>    <br/>            if isnumber(x) and isnumber(y):<br/>                x_isnan, y_isnan = isnan(x), isnan(y)<br/>                x_isinf, y_isinf = isinf(x), isinf(y)<br/>    <br/>                # Validate that the special values are in the same place<br/>                if any(x_isnan) or any(y_isnan):<br/>                    chk_same_position(x_isnan, y_isnan, hasval='nan')<br/>                if any(x_isinf) or any(y_isinf):<br/>                    # Check +inf and -inf separately, since they are different<br/>                    chk_same_position(x == +inf, y == +inf, hasval='+inf')<br/>                    chk_same_position(x == -inf, y == -inf, hasval='-inf')<br/>    <br/>                # Combine all the special values<br/>                x_id, y_id = x_isnan, y_isnan<br/>                x_id |= x_isinf<br/>                y_id |= y_isinf<br/>    <br/>                # Only do the comparison if actual values are left<br/>                if all(x_id):<br/>                    return<br/>    <br/>                if any(x_id):<br/>                    val = safe_comparison(x[~x_id], y[~y_id])<br/>                else:<br/>                    val = safe_comparison(x, y)<br/>            else:<br/>                val = safe_comparison(x, y)<br/>    <br/>            if isinstance(val, bool):<br/>                cond = val<br/>                reduced = [0]<br/>            else:<br/>                reduced = val.ravel()<br/>                cond = reduced.all()<br/>                reduced = reduced.tolist()<br/>            if not cond:<br/>                match = 100-100.0*reduced.count(1)/len(reduced)<br/>                msg = build_err_msg([x, y],<br/>                                    err_msg<br/>                                    + '\n(mismatch %s%%)' % (match,),<br/>                                    verbose=verbose, header=header,<br/>                                    names=('x', 'y'), precision=precision)<br/>                if not cond:<br/>&gt;                   raise AssertionError(msg)<br/><span class="error">E                   AssertionError: </span><br/><span class="error">E                   Not equal to tolerance rtol=1e-07, atol=0</span><br/><span class="error">E                   </span><br/><span class="error">E                   (mismatch 37.06%)</span><br/><span class="error">E                    x: array([  3.053300e+27,   2.108002e+27,   2.757260e+27, ...,   0.000000e+00,</span><br/><span class="error">E                            0.000000e+00,   0.000000e+00])</span><br/><span class="error">E                    y: array([  2.450132e+27,   2.105849e+27,   3.050621e+27, ...,   0.000000e+00,</span><br/><span class="error">E                            0.000000e+00,   0.000000e+00])</span><br/><br/>/home/misha/.virtualenvs/tardis/local/lib/python2.7/site-packages/numpy/testing/utils.py:708: AssertionError<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py::TestIntegration::()::test_shell_temperature[/tmp/tardis-test-ifGRzT/lib.linux-x86_64-2.7/tardis/tests/integration_tests/w7]</td>
+          <td class="col-duration">0.17</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="5">
+            <div>
+<div class="image" style="float: left">
+    <a href="#">
+        <img src= "assets/w7_t_rads.png" />
+    </a>
+</div>
+</div>
+            <div class="log" style="clear: both">self = &lt;tardis.tests.integration_tests.test_integration.TestIntegration object at 0x7f18f486ced0&gt;<br/>plot_object = &lt;tardis.tests.integration_tests.plot_helpers.LocalPlotSaver object at 0x7f18f486cf90&gt;<br/><br/>    def test_shell_temperature(self, plot_object):<br/>        plot_object.add(self.plot_t_rads(), "{0}_t_rads".format(self.name))<br/>    <br/>        assert_allclose(<br/>            self.reference['/simulation/model/t_rads'],<br/>&gt;           self.result.t_rads.cgs.value)<br/><br/>tardis/tests/integration_tests/test_integration.py:204: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ <br/>/home/misha/.virtualenvs/tardis/local/lib/python2.7/site-packages/numpy/testing/utils.py:1347: in assert_allclose<br/>    verbose=verbose, header=header)<br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ <br/><br/>comparison = &lt;function compare at 0x7f18f46a6140&gt;<br/>x = array([ 11106.32033951,  10227.73221198,   9558.40647237,   9448.61335653,<br/>   ...92,   8796.77175946,<br/>         8781.50307696,   8763.28563894,   8746.5862911 ])<br/>y = array([ 11128.64711408,  10230.84631459,   9564.21330678,   9463.09891423,<br/>   ...53,   8821.37179549,<br/>         8799.83795812,   8784.32205327,   8766.60582431])<br/>err_msg = '', verbose = True<br/>header = 'Not equal to tolerance rtol=1e-07, atol=0', precision = 6<br/><br/>    def assert_array_compare(comparison, x, y, err_msg='', verbose=True,<br/>                             header='', precision=6):<br/>        from numpy.core import array, isnan, isinf, any, all, inf<br/>        x = array(x, copy=False, subok=True)<br/>        y = array(y, copy=False, subok=True)<br/>    <br/>        def safe_comparison(*args, **kwargs):<br/>            # There are a number of cases where comparing two arrays hits special<br/>            # cases in array_richcompare, specifically around strings and void<br/>            # dtypes. Basically, we just can't do comparisons involving these<br/>            # types, unless both arrays have exactly the *same* type. So<br/>            # e.g. you can apply == to two string arrays, or two arrays with<br/>            # identical structured dtypes. But if you compare a non-string array<br/>            # to a string array, or two arrays with non-identical structured<br/>            # dtypes, or anything like that, then internally stuff blows up.<br/>            # Currently, when things blow up, we just return a scalar False or<br/>            # True. But we also emit a DeprecationWarning, b/c eventually we<br/>            # should raise an error here. (Ideally we might even make this work<br/>            # properly, but since that will require rewriting a bunch of how<br/>            # ufuncs work then we are not counting on that.)<br/>            #<br/>            # The point of this little function is to let the DeprecationWarning<br/>            # pass (or maybe eventually catch the errors and return False, I<br/>            # dunno, that's a little trickier and we can figure that out when the<br/>            # time comes).<br/>            with warnings.catch_warnings():<br/>                warnings.filterwarnings("ignore", category=DeprecationWarning)<br/>                return comparison(*args, **kwargs)<br/>    <br/>        def isnumber(x):<br/>            return x.dtype.char in '?bhilqpBHILQPefdgFDG'<br/>    <br/>        def chk_same_position(x_id, y_id, hasval='nan'):<br/>            """Handling nan/inf: check that x and y have the nan/inf at the same<br/>            locations."""<br/>            try:<br/>                assert_array_equal(x_id, y_id)<br/>            except AssertionError:<br/>                msg = build_err_msg([x, y],<br/>                                    err_msg + '\nx and y %s location mismatch:'<br/>                                    % (hasval), verbose=verbose, header=header,<br/>                                    names=('x', 'y'), precision=precision)<br/>                raise AssertionError(msg)<br/>    <br/>        try:<br/>            cond = (x.shape == () or y.shape == ()) or x.shape == y.shape<br/>            if not cond:<br/>                msg = build_err_msg([x, y],<br/>                                    err_msg<br/>                                    + '\n(shapes %s, %s mismatch)' % (x.shape,<br/>                                                                      y.shape),<br/>                                    verbose=verbose, header=header,<br/>                                    names=('x', 'y'), precision=precision)<br/>                if not cond:<br/>                    raise AssertionError(msg)<br/>    <br/>            if isnumber(x) and isnumber(y):<br/>                x_isnan, y_isnan = isnan(x), isnan(y)<br/>                x_isinf, y_isinf = isinf(x), isinf(y)<br/>    <br/>                # Validate that the special values are in the same place<br/>                if any(x_isnan) or any(y_isnan):<br/>                    chk_same_position(x_isnan, y_isnan, hasval='nan')<br/>                if any(x_isinf) or any(y_isinf):<br/>                    # Check +inf and -inf separately, since they are different<br/>                    chk_same_position(x == +inf, y == +inf, hasval='+inf')<br/>                    chk_same_position(x == -inf, y == -inf, hasval='-inf')<br/>    <br/>                # Combine all the special values<br/>                x_id, y_id = x_isnan, y_isnan<br/>                x_id |= x_isinf<br/>                y_id |= y_isinf<br/>    <br/>                # Only do the comparison if actual values are left<br/>                if all(x_id):<br/>                    return<br/>    <br/>                if any(x_id):<br/>                    val = safe_comparison(x[~x_id], y[~y_id])<br/>                else:<br/>                    val = safe_comparison(x, y)<br/>            else:<br/>                val = safe_comparison(x, y)<br/>    <br/>            if isinstance(val, bool):<br/>                cond = val<br/>                reduced = [0]<br/>            else:<br/>                reduced = val.ravel()<br/>                cond = reduced.all()<br/>                reduced = reduced.tolist()<br/>            if not cond:<br/>                match = 100-100.0*reduced.count(1)/len(reduced)<br/>                msg = build_err_msg([x, y],<br/>                                    err_msg<br/>                                    + '\n(mismatch %s%%)' % (match,),<br/>                                    verbose=verbose, header=header,<br/>                                    names=('x', 'y'), precision=precision)<br/>                if not cond:<br/>&gt;                   raise AssertionError(msg)<br/><span class="error">E                   AssertionError: </span><br/><span class="error">E                   Not equal to tolerance rtol=1e-07, atol=0</span><br/><span class="error">E                   </span><br/><span class="error">E                   (mismatch 100.0%)</span><br/><span class="error">E                    x: array([ 11106.32034 ,  10227.732212,   9558.406472,   9448.613357,</span><br/><span class="error">E                            9387.722158,   9323.329883,   9245.486408,   9108.636253,</span><br/><span class="error">E                            9044.494768,   9021.496917,   9004.706261,   8987.749179,...</span><br/><span class="error">E                    y: array([ 11128.647114,  10230.846315,   9564.213307,   9463.098914,</span><br/><span class="error">E                            9398.905375,   9317.754396,   9260.440979,   9157.016513,</span><br/><span class="error">E                            9079.980101,   9058.885596,   9030.708294,   9017.280392,...</span><br/><br/>/home/misha/.virtualenvs/tardis/local/lib/python2.7/site-packages/numpy/testing/utils.py:708: AssertionError<br/></div></td></tr></tbody>
+      <tbody class="skipped results-table-row">
+        <tr>
+          <td class="col-result">Skipped</td>
+          <td class="col-name">lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py::TestIntegration::()::test_j_estimators[/tmp/tardis-test-ifGRzT/lib.linux-x86_64-2.7/tardis/tests/integration_tests/at]::setup</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="5">
+            <div class="log" style="clear: both">('lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py', 96, u'Skipped: Introduction of HDF mechanism.')<br/></div></td></tr></tbody>
+      <tbody class="skipped results-table-row">
+        <tr>
+          <td class="col-result">Skipped</td>
+          <td class="col-name">lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py::TestIntegration::()::test_j_blue_estimators[/tmp/tardis-test-ifGRzT/lib.linux-x86_64-2.7/tardis/tests/integration_tests/at]::setup</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="5">
+            <div class="log" style="clear: both">('lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py', 102, u'Skipped: Introduction of HDF mechanism.')<br/></div></td></tr></tbody>
+      <tbody class="skipped results-table-row">
+        <tr>
+          <td class="col-result">Skipped</td>
+          <td class="col-name">lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py::TestIntegration::()::test_last_line_interactions[/tmp/tardis-test-ifGRzT/lib.linux-x86_64-2.7/tardis/tests/integration_tests/at]::setup</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="5">
+            <div class="log" style="clear: both">('lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py', 112, u'Skipped: Introduction of HDF mechanism.')<br/></div></td></tr></tbody>
+      <tbody class="skipped results-table-row">
+        <tr>
+          <td class="col-result">Skipped</td>
+          <td class="col-name">lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py::TestIntegration::()::test_nubar_estimators[/tmp/tardis-test-ifGRzT/lib.linux-x86_64-2.7/tardis/tests/integration_tests/at]::setup</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="5">
+            <div class="log" style="clear: both">('lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py', 130, u'Skipped: Introduction of HDF mechanism.')<br/></div></td></tr></tbody>
+      <tbody class="skipped results-table-row">
+        <tr>
+          <td class="col-result">Skipped</td>
+          <td class="col-name">lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py::TestIntegration::()::test_ws[/tmp/tardis-test-ifGRzT/lib.linux-x86_64-2.7/tardis/tests/integration_tests/at]::setup</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="5">
+            <div class="log" style="clear: both">('lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py', 136, u'Skipped: Introduction of HDF mechanism.')<br/></div></td></tr></tbody>
+      <tbody class="skipped results-table-row">
+        <tr>
+          <td class="col-result">Skipped</td>
+          <td class="col-name">lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py::TestIntegration::()::test_luminosity_inner[/tmp/tardis-test-ifGRzT/lib.linux-x86_64-2.7/tardis/tests/integration_tests/at]::setup</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="5">
+            <div class="log" style="clear: both">('lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py', 142, u'Skipped: Introduction of HDF mechanism.')<br/></div></td></tr></tbody>
+      <tbody class="skipped results-table-row">
+        <tr>
+          <td class="col-result">Skipped</td>
+          <td class="col-name">lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py::TestIntegration::()::test_montecarlo_properties[/tmp/tardis-test-ifGRzT/lib.linux-x86_64-2.7/tardis/tests/integration_tests/at]::setup</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="5">
+            <div class="log" style="clear: both">('lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py', 184, u'Skipped: Introduction of HDF mechanism.')<br/></div></td></tr></tbody>
+      <tbody class="skipped results-table-row">
+        <tr>
+          <td class="col-result">Skipped</td>
+          <td class="col-name">lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py::TestIntegration::()::test_j_estimators[/tmp/tardis-test-ifGRzT/lib.linux-x86_64-2.7/tardis/tests/integration_tests/w7]::setup</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="5">
+            <div class="log" style="clear: both">('lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py', 96, u'Skipped: Introduction of HDF mechanism.')<br/></div></td></tr></tbody>
+      <tbody class="skipped results-table-row">
+        <tr>
+          <td class="col-result">Skipped</td>
+          <td class="col-name">lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py::TestIntegration::()::test_j_blue_estimators[/tmp/tardis-test-ifGRzT/lib.linux-x86_64-2.7/tardis/tests/integration_tests/w7]::setup</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="5">
+            <div class="log" style="clear: both">('lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py', 102, u'Skipped: Introduction of HDF mechanism.')<br/></div></td></tr></tbody>
+      <tbody class="skipped results-table-row">
+        <tr>
+          <td class="col-result">Skipped</td>
+          <td class="col-name">lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py::TestIntegration::()::test_last_line_interactions[/tmp/tardis-test-ifGRzT/lib.linux-x86_64-2.7/tardis/tests/integration_tests/w7]::setup</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="5">
+            <div class="log" style="clear: both">('lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py', 112, u'Skipped: Introduction of HDF mechanism.')<br/></div></td></tr></tbody>
+      <tbody class="skipped results-table-row">
+        <tr>
+          <td class="col-result">Skipped</td>
+          <td class="col-name">lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py::TestIntegration::()::test_nubar_estimators[/tmp/tardis-test-ifGRzT/lib.linux-x86_64-2.7/tardis/tests/integration_tests/w7]::setup</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="5">
+            <div class="log" style="clear: both">('lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py', 130, u'Skipped: Introduction of HDF mechanism.')<br/></div></td></tr></tbody>
+      <tbody class="skipped results-table-row">
+        <tr>
+          <td class="col-result">Skipped</td>
+          <td class="col-name">lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py::TestIntegration::()::test_ws[/tmp/tardis-test-ifGRzT/lib.linux-x86_64-2.7/tardis/tests/integration_tests/w7]::setup</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="5">
+            <div class="log" style="clear: both">('lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py', 136, u'Skipped: Introduction of HDF mechanism.')<br/></div></td></tr></tbody>
+      <tbody class="skipped results-table-row">
+        <tr>
+          <td class="col-result">Skipped</td>
+          <td class="col-name">lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py::TestIntegration::()::test_luminosity_inner[/tmp/tardis-test-ifGRzT/lib.linux-x86_64-2.7/tardis/tests/integration_tests/w7]::setup</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="5">
+            <div class="log" style="clear: both">('lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py', 142, u'Skipped: Introduction of HDF mechanism.')<br/></div></td></tr></tbody>
+      <tbody class="skipped results-table-row">
+        <tr>
+          <td class="col-result">Skipped</td>
+          <td class="col-name">lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py::TestIntegration::()::test_montecarlo_properties[/tmp/tardis-test-ifGRzT/lib.linux-x86_64-2.7/tardis/tests/integration_tests/w7]::setup</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="5">
+            <div class="log" style="clear: both">('lib.linux-x86_64-2.7/tardis/tests/integration_tests/test_integration.py', 184, u'Skipped: Introduction of HDF mechanism.')<br/></div></td></tr></tbody></table></body></html>
