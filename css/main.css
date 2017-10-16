@@ -29,6 +29,12 @@ body {
     margin-right: 30px;
 }
 
+.project-title {
+    text-decoration: none;
+    color: #000;
+}
+
+
 a {
     text-decoration: none;
     color: #999;
